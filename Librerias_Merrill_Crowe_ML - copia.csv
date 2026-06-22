@@ -1,0 +1,15 @@
+Libreria;Instalacion_pip;Uso_en_Merrill_Crowe
+pandas;pip install pandas;Manejo de datos y Excel
+numpy;pip install numpy;Cálculos numéricos
+scikit-learn;pip install scikit-learn;Modelos ML y métricas
+xgboost;pip install xgboost;Predicción avanzada de consumo de Zn
+lightgbm;pip install lightgbm;Modelos de gradiente rápidos
+catboost;pip install catboost;Variables operacionales complejas
+statsmodels;pip install statsmodels;Linealidad, ANOVA, OLS, VIF
+scipy;pip install scipy;Pruebas estadísticas
+matplotlib;pip install matplotlib;Gráficos técnicos
+plotly;pip install plotly;Dashboards interactivos
+shap;pip install shap;Interpretación del modelo
+optuna;pip install optuna;Optimización de hiperparámetros
+openpyxl;pip install openpyxl;Lectura y escritura Excel
+joblib;pip install joblib;Guardar modelos entrenados
