@@ -11,14 +11,12 @@ from scipy.stats import shapiro
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
 
-# 1. Configuración de la página (DEBE SER LA PRIMERA LÍNEA DE STREAMLIT)
 st.set_page_config(page_title="Optimización de Zinc", page_icon="🏭", layout="wide")
 
-st.title("🏭 Modelo Predictivo de Dosis de Zinc")
+st.title("Modelo Predictivo de Dosis de Zinc")
 st.markdown("Optimización del consumo de zinc en el proceso **Merrill-Crowe** utilizando Machine Learning.")
 st.divider()
 
-# 2. Carga de datos
 @st.cache_data
 def load_data():
     archivo = "Dataset_Merrill_Crowe_Zinc_Predictivo.xlsx"
@@ -30,20 +28,17 @@ except FileNotFoundError:
     st.error("No se encontró el archivo Excel. Asegúrate de que esté en la misma ruta que el script.")
     st.stop()
 
-# 3. Entrenamiento en background (antes de dibujar la UI para usarlo en el sidebar)
 X = df[['Pureza_Zinc_pct','pH','Oro_mg_L','Turbidez_NTU','Oxigeno_Disuelto_mg_L']]
 y = df['Dosis_Zinc_Polvo_g_m3']
 X_const = sm.add_constant(X)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Entrenar Random Forest para el simulador
 rf = RandomForestRegressor(n_estimators=300, max_depth=12, random_state=42)
 rf.fit(X_train, y_train)
 pred_rf = rf.predict(X_test)
 
-# 4. Panel Lateral (Sidebar) - Simulador en tiempo real
-st.sidebar.header("🔮 Simulador de Dosis")
+st.sidebar.header("Simulador de Dosis")
 st.sidebar.markdown("Ajusta los parámetros operativos:")
 
 val_pureza = st.sidebar.slider("Pureza del Zinc (%)", min_value=90.0, max_value=100.0, value=float(df['Pureza_Zinc_pct'].mean()), step=0.1)
@@ -52,7 +47,6 @@ val_oro = st.sidebar.slider("Oro (mg/L)", min_value=0.0, max_value=20.0, value=f
 val_turbidez = st.sidebar.slider("Turbidez (NTU)", min_value=0.0, max_value=5.0, value=float(df['Turbidez_NTU'].mean()), step=0.1)
 val_oxigeno = st.sidebar.slider("Oxígeno Disuelto (mg/L)", min_value=0.0, max_value=3.0, value=float(df['Oxigeno_Disuelto_mg_L'].mean()), step=0.1)
 
-# Predicción en tiempo real
 input_usuario = pd.DataFrame({
     'Pureza_Zinc_pct': [val_pureza],
     'pH': [val_ph],
@@ -67,10 +61,8 @@ st.sidebar.divider()
 st.sidebar.subheader("Resultado Sugerido:")
 st.sidebar.success(f"**{dosis_predicha:.2f} g/m³ de Zinc**")
 
-# 5. Organización en Pestañas (Tabs) principales
 tab1, tab2, tab3 = st.tabs(["📊 Datos y Exploración", "⚙️ Rendimiento del Modelo", "🧪 Fundamento Teórico"])
 
-# --- PESTAÑA 1: DATOS ---
 with tab1:
     st.subheader("Vista Rápida del Dataset")
     st.dataframe(df.head(), use_container_width=True)
@@ -87,11 +79,10 @@ with tab1:
         vif["VIF"] = [variance_inflation_factor(X_const.values, i) for i in range(X_const.shape[1])]
         st.dataframe(vif, use_container_width=True)
 
-# --- PESTAÑA 2: MODELOS ---
 with tab2:
     st.header("Métricas de Modelos Predictivos")
     
-    st.subheader("🌲 Random Forest (Modelo Principal)")
+    st.subheader("Random Forest (Modelo Principal)")
     rf_col1, rf_col2, rf_col3 = st.columns(3)
     rf_col1.metric("R² (Exactitud)", f"{r2_score(y_test, pred_rf):.4f}")
     rf_col2.metric("MAE (Error Absoluto)", f"{mean_absolute_error(y_test, pred_rf):.4f}")
@@ -104,7 +95,7 @@ with tab2:
     with col_izq:
         st.subheader("📈 Importancia de Variables")
         imp = pd.DataFrame({'Importancia': rf.feature_importances_}, index=X.columns)
-        imp = imp.sort_values(by='Importancia', ascending=True) # Ascending para bar_chart horizontal
+        imp = imp.sort_values(by='Importancia', ascending=True)
         st.bar_chart(imp)
         
     with col_der:
@@ -126,12 +117,10 @@ with tab2:
         modelo_ols = sm.OLS(y, X_const).fit()
         st.text(modelo_ols.summary())
 
-# --- PESTAÑA 3: TEORÍA ---
 with tab3:
     st.header("Cálculos Teóricos Merrill-Crowe")
     
-    reaccion = "2Au(CN)2- + Zn -> 2Au + Zn(CN)4(2-)"
-    st.code(reaccion, language="text")
+    st.latex(r"2\mathrm{Au(CN)_2^-} + \mathrm{Zn} \rightarrow 2\mathrm{Au} + \mathrm{Zn(CN)_4^{2-}}")
     
     st.markdown("""
     * **Peso Molecular Au:** 196.97 g/mol
@@ -140,7 +129,7 @@ with tab3:
     **Relación Estequiométrica:**
     65.38 g de Zn precipitan 393.94 g de Au (Equivale a **0.166 g Zn / g Au**).
     
-    > ⚠️ **Nota Operativa:** En planta se utilizan excesos de 2x a 20x respecto al cálculo teórico debido a la presencia de oxígeno residual, impurezas metálicas (plata, cobre) y la pasivación mecánica de las partículas de polvo de zinc.
+    > **Nota Operativa:** En planta se utilizan excesos de 2x a 20x respecto al cálculo teórico debido a la presencia de oxígeno residual, impurezas metálicas (plata, cobre) y la pasivación mecánica de las partículas de polvo de zinc.
     """)
     
     def zinc_teorico(oro_mg_l):
