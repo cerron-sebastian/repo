@@ -61,7 +61,7 @@ st.sidebar.divider()
 st.sidebar.subheader("Resultado Sugerido:")
 st.sidebar.success(f"**{dosis_predicha:.2f} g/m³ de Zinc**")
 
-tab1, tab2, tab3 = st.tabs(["📊 Datos y Exploración", "⚙️ Rendimiento del Modelo", "🧪 Fundamento Teórico"])
+tab1, tab2, tab3 = st.tabs(["Datos y Exploración", "Rendimiento del Modelo", "Fundamento Teórico"])
 
 with tab1:
     st.subheader("Vista Rápida del Dataset")
