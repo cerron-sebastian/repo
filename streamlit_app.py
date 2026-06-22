@@ -1,196 +1,107 @@
-import streamlit as st
+import pandas as pd
+import numpy as np
 
-st.set_page_config(
-    page_title="Predicción de Dosificación de Zinc",
-    page_icon="⚗️",
-    layout="wide"
-)
+from sklearn.model_selection import train_test_split,cross_val_score
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-# ==========================
-# ESTILOS
-# ==========================
+from scipy.stats import shapiro
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+import statsmodels.api as sm
 
-st.markdown("""
-<style>
-.main-header {
-    font-size: 42px;
-    font-weight: bold;
-    color: #1f77b4;
-}
+archivo = "Dataset_Merrill_Crowe_Zinc_Predictivo.xlsx"
+df = pd.read_excel(archivo)
 
-.section-title {
-    font-size: 26px;
-    font-weight: bold;
-    color: #2c3e50;
-    margin-top:20px;
-}
+print(df.head())
+print(df.describe())
 
-.info-box {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 6px solid #1f77b4;
-}
+X = df[['Pureza_Zinc_pct','pH','Oro_mg_L','Turbidez_NTU','Oxigeno_Disuelto_mg_L']]
 
-.result-box {
-    background-color: #e8f5e9;
-    padding: 20px;
-    border-radius: 10px;
-    text-align: center;
-}
-</style>
-""", unsafe_allow_html=True)
+y = df['Dosis_Zinc_Polvo_g_m3']
 
-# ==========================
-# TÍTULO
-# ==========================
+X_const = sm.add_constant(X)
 
-st.markdown(
-    '<p class="main-header">⚗️ Predicción de Dosificación de Polvo de Zinc</p>',
-    unsafe_allow_html=True
-)
+vif = pd.DataFrame()
+vif["Variable"] = X.columns
+vif["VIF"] = [variance_inflation_factor(X.values, i)
+              for i in range(X.shape[1])]
 
-st.caption("Sistema de apoyo para operación Merrill-Crowe")
+print("\nVIF")
+print(vif)
 
-# ==========================
-# EXPLICACIÓN
-# ==========================
+modelo_ols = sm.OLS(y, X_const).fit()
+print(modelo_ols.summary())
 
-st.markdown(
-    '<p class="section-title">¿Qué es el proceso Merrill-Crowe?</p>',
-    unsafe_allow_html=True
-)
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=0.2,random_state=42)
 
-st.markdown("""
-<div class="info-box">
+lr = LinearRegression()
+lr.fit(X_train, y_train)
 
-El proceso <b>Merrill-Crowe</b> es una técnica utilizada en minería para recuperar
-<b>oro (Au)</b> y <b>plata (Ag)</b> desde soluciones cianuradas.
+pred_lr = lr.predict(X_test)
 
-Las etapas principales son:
+print("\nREGRESION LINEAL")
+print("R2 =", r2_score(y_test, pred_lr))
+print("MAE =", mean_absolute_error(y_test, pred_lr))
+print("RMSE =", np.sqrt(mean_squared_error(y_test, pred_lr)))
 
-1. Lixiviación del mineral.
-2. Clarificación de la solución.
-3. Desoxigenación.
-4. Adición de polvo de zinc.
-5. Precipitación de oro y plata.
-6. Filtrado y recuperación del precipitado.
+rf = RandomForestRegressor(n_estimators=300,max_depth=12,random_state=42)
+rf.fit(X_train, y_train)
+pred_rf = rf.predict(X_test)
 
-La correcta dosificación de zinc es importante porque:
+print("\nRANDOM FOREST")
+print("R2 =", r2_score(y_test, pred_rf))
+print("MAE =", mean_absolute_error(y_test, pred_rf))
+print("RMSE =", np.sqrt(mean_squared_error(y_test, pred_rf)))
 
-- Una dosis baja reduce la recuperación de metales.
-- Una dosis alta incrementa costos operacionales.
+scores = cross_val_score(rf,X,y,cv=5,scoring='r2')
 
-</div>
-""", unsafe_allow_html=True)
+print("\nCross Validation R2")
+print(scores)
+print("Promedio =", scores.mean())
 
-# ==========================
-# INPUTS
-# ==========================
+residuos = y_test - pred_rf
 
-st.markdown(
-    '<p class="section-title">Variables de Entrada</p>',
-    unsafe_allow_html=True
-)
+print("\nShapiro-Wilk residuos")
+print(shapiro(residuos))
 
-col1, col2 = st.columns(2)
+imp = pd.DataFrame({'Variable': X.columns,'Importancia': rf.feature_importances_})
 
-with col1:
+imp = imp.sort_values(by='Importancia',ascending=False)
 
-    au = st.number_input(
-        "Concentración de Oro (mg/L)",
-        min_value=0.0,
-        value=5.0
-    )
+print("\nImportancia Variables")
+print(imp)
 
-    ag = st.number_input(
-        "Concentración de Plata (mg/L)",
-        min_value=0.0,
-        value=50.0
-    )
 
-with col2:
+reaccion = "2Au(CN)2- + Zn -> 2Au + Zn(CN)4(2-)"
+print(reaccion)
 
-    caudal = st.number_input(
-        "Caudal de Solución (m³/h)",
-        min_value=0.0,
-        value=100.0
-    )
+#PM Au = 196.97 g/mol
+#PM Zn = 65.38 g/mol
 
-    factor = st.slider(
-        "Factor de Seguridad",
-        1.0,
-        2.0,
-        1.2,
-        0.05
-    )
+#Teoricamente:
+#65.38 g Zn precipitan
+#393.94 g Au
 
-# ==========================
-# INFO DE VARIABLES
-# ==========================
+#=> 0.166 g Zn / g Au
 
-with st.expander("📋 Información esperada de los datos"):
+#En planta se utilizan excesos de 2x a 20x debido a:
+#- oxigeno residual
+#- impurezas
+#- plata
+#- cobre
+#- pasivacion
 
-    st.markdown("""
-    **Oro (Au):**
-    - Unidad: mg/L
-    - Concentración de oro disuelto.
+#Factor operacional sugerido:
+Zn_real = Zn_teorico * factor_operacional
 
-    **Plata (Ag):**
-    - Unidad: mg/L
-    - Concentración de plata disuelta.
 
-    **Caudal:**
-    - Unidad: m³/h
-    - Flujo de solución rica que ingresa al proceso.
+def zinc_teorico(oro_mg_l):
+    return oro_mg_l * (65.38 / (2 * 196.97))
 
-    **Factor de Seguridad:**
-    - Ajuste operacional para asegurar precipitación completa.
-    """)
+print("\nEjemplo Zn teorico para 10 mg/L Au")
+print(zinc_teorico(10))
 
-# ==========================
-# BOTÓN
-# ==========================
-
-st.divider()
-
-if st.button("🔍 Calcular Dosificación", use_container_width=True):
-
-    # Fórmula DEMO
-    zinc = (au + 0.5 * ag) * caudal * 0.0001
-    zinc *= factor
-
-    st.markdown(
-        f"""
-        <div class="result-box">
-        <h2>Dosificación Recomendada</h2>
-        <h1>{zinc:.3f} kg/h</h1>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.metric(
-            "Consumo Diario",
-            f"{zinc*24:.2f} kg/día"
-        )
-
-    with col2:
-        st.metric(
-            "Consumo Mensual",
-            f"{zinc*24*30:.2f} kg/mes"
-        )
-
-# ==========================
-# PIE
-# ==========================
-
-st.divider()
-
-st.info(
-    "Nota: la ecuación utilizada es referencial. "
+print("\nModelo listo.")
     "Debe reemplazarse por el modelo metalúrgico o predictivo real."
 )
